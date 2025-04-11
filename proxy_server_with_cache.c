@@ -62,8 +62,8 @@ int connectRemoteServer(char* host_addr, int port_num){
     server_addr.sin_family = AF_INET;
     server_addr.sin_port = htons(port_num);
 
-    bcopy((char*)&host->h_addr_list, (char*)&server_addr.sin_addr.s_addr, host->h_length);
-    if(connect(remoteSocket, (struct sock_addr*)&server_addr, (size_t)sizeof(server_addr)) < 0){
+    bcopy((char*)host->h_addr_list, (char*)&server_addr.sin_addr.s_addr, host->h_length);
+    if(connect(remoteSocket, (struct sockaddr*)&server_addr, (size_t)sizeof(server_addr)) < 0){
         fprintf(stderr, "Error in connecting!\n");
         return -1;
     }
@@ -158,7 +158,7 @@ int handle_request(int clientSocketId, struct ParsedRequest* request, char* temp
 
     while(bytes_send > 0){
         bytes_send = send(clientSocketId, buf, bytes_send, 0);
-        for(int i=0; i<bytes_send/(sizeof(char)); i++){
+        for(ssize_t i=0; i<bytes_send/(sizeof(char)); i++){
             temp_buffer[temp_buffer_index] = buf[i];
             temp_buffer_index++;
         }
@@ -168,7 +168,7 @@ int handle_request(int clientSocketId, struct ParsedRequest* request, char* temp
             perror("Error in sending data to the client!\n");
             break;
         }
-        bzero(temp_buffer, MAX_BYTES);
+        bzero(buf, MAX_BYTES);
         bytes_send = recv(remoteSocketId, buf, MAX_BYTES-1, 0);
     }
     temp_buffer[temp_buffer_index] = '\0';
@@ -181,10 +181,10 @@ int handle_request(int clientSocketId, struct ParsedRequest* request, char* temp
 
 int checkHTTPversion(char* msg){
     int version = -1;
-    if(strcnmp(msg, "HTTP/1.1", 8) == 0){
+    if(strncmp(msg, "HTTP/1.1", 8) == 0){
         version = 1;
     }
-    else if(strcnmp(msg, "HTTP/1.0", 8) == 0){
+    else if(strncmp(msg, "HTTP/1.0", 8) == 0){
         version = 1;
     }
     else{
@@ -196,7 +196,7 @@ int checkHTTPversion(char* msg){
 void* thread_fn(void* socketNew){
     sem_wait(&semaphore);
     int p;
-    sem_getvalue(&semaphore, p);
+    sem_getvalue(&semaphore, &p);
     printf("Semaphore value is %d\n", p);
     int* t= (int*) socketNew;
     int socket = *t;    // dereference t
@@ -217,7 +217,7 @@ void* thread_fn(void* socketNew){
     
 
     char* tempReq = (char*)malloc(strlen(buffer)*sizeof(char)+1);       // creating copy of the request
-    for(int i=0; i<strlen(buffer); i++){
+    for(size_t i=0; i<strlen(buffer); i++){
         tempReq[i] = buffer[i];
     }
     cache_element* temp = find(tempReq);
@@ -268,7 +268,7 @@ void* thread_fn(void* socketNew){
     close(socket);
     free(buffer);
     sem_post(&semaphore);
-    sem_getvalue(&semaphore, p);
+    sem_getvalue(&semaphore, &p);
     printf("Semaphore post value is %d\n", p);
     free(tempReq);
     return NULL;
@@ -362,7 +362,7 @@ int main(int argc, char* argv[]){
     struct sockaddr_in server_addr, client_addr;
     sem_init(&semaphore, 0, MAX_CLIENTS);
     pthread_mutex_init(&lock, NULL);
-    if(argv == 2){
+    if(argc == 2){
         port_number = atoi(argv[1]);
     }
     else{
