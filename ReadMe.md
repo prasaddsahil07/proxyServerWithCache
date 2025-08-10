@@ -231,3 +231,10 @@ Cache element added. Cache size: XXXX
 - Configuration file support
 - Load balancing capabilities
 - Better error recovery mechanisms
+-
+-
+-
+- <img width="853" height="459" alt="Screenshot (354)" src="https://github.com/user-attachments/assets/72c29133-f477-4d37-b588-91cf2f385fc9" />
+
+
+
