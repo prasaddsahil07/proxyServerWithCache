@@ -381,39 +381,80 @@ int add_cache_element(char* data, int size, char* url){
     return 1;
 }
 
-// Fix: Remove mutex operations since this is called from add_cache_element which already holds the lock
-void remove_cache_element(){
-    cache_element* p = NULL;    
-    cache_element* q;    
-    cache_element* temp = NULL;
-    
-    if(head != NULL){
-        // Find the least recently used element
-        for(q = head; q != NULL; q = q->next){
-            if(temp == NULL || q->lru_time_track < temp->lru_time_track){
-                temp = q;
-                p = (q == head) ? NULL : p;  // p should point to the previous node
-            }
-            if(q->next && q->next != temp){
-                p = q;  // Update p to point to the node before temp
-            }
-        }
-        
-        if(temp == head){
-            head = head->next;
-        }
-        else if(p != NULL){
-            p->next = temp->next;
-        }
-        
-        cache_size = cache_size - (temp->len) - sizeof(cache_element) - strlen(temp->url) - 1;
-        printf("Removing from cache: %s\n", temp->url);
-        
-        free(temp->data);
-        free(temp->url);
-        free(temp);
+// lock is already held by the caller
+void remove_cache_element() {
+    if (head == NULL) {
+        return;
     }
+
+    cache_element *temp = head;        // LRU candidate
+    cache_element *prev_to_temp = NULL; // Node before LRU
+    cache_element *curr = head;
+    cache_element *prev = NULL;
+
+    // Find the LRU element
+    while (curr != NULL) {
+        if (curr->lru_time_track < temp->lru_time_track) {
+            temp = curr;
+            prev_to_temp = prev;
+        }
+        prev = curr;
+        curr = curr->next;
+    }
+
+    // Remove the LRU element from the list
+    if (temp == head) {
+        head = head->next;
+    } else if (prev_to_temp != NULL) {
+        prev_to_temp->next = temp->next;
+    }
+
+    // Adjust cache size
+    cache_size -= (temp->len + 1)                // data size + null
+                  + (strlen(temp->url) + 1)      // url size + null
+                  + sizeof(cache_element);
+
+    printf("Removing from cache: %s\n", temp->url);
+
+    // Free memory
+    free(temp->data);
+    free(temp->url);
+    free(temp);
 }
+
+
+// void remove_cache_element(){
+//     cache_element* p = NULL;    
+//     cache_element* q;    
+//     cache_element* temp = NULL;
+    
+//     if(head != NULL){
+//         // Find the least recently used element
+//         for(q = head; q != NULL; q = q->next){
+//             if(temp == NULL || q->lru_time_track < temp->lru_time_track){
+//                 temp = q;
+//                 p = (q == head) ? NULL : p;  // p should point to the previous node
+//             }
+//             if(q->next && q->next != temp){
+//                 p = q;  // Update p to point to the node before temp
+//             }
+//         }
+        
+//         if(temp == head){
+//             head = head->next;
+//         }
+//         else if(p != NULL){
+//             p->next = temp->next;
+//         }
+        
+//         cache_size = cache_size - (temp->len) - sizeof(cache_element) - strlen(temp->url) - 1;
+//         printf("Removing from cache: %s\n", temp->url);
+        
+//         free(temp->data);
+//         free(temp->url);
+//         free(temp);
+//     }
+// }
 
 int main(int argc, char* argv[]){
     int client_socketId, client_len;
